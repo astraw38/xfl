@@ -32,7 +32,6 @@ License: CeCILL v2, open-source (GPL compatible)
 
 #--- IMPORTS ------------------------------------------------------------------
 import sys
-import hashlib
 
 # path module to easily handle files and dirs:
 try:
