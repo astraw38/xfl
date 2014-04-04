@@ -1,0 +1,10 @@
+setup.py
+bin/create_manifest.py
+xfl/__init__.py
+xfl/xfl.py
+xfl.egg-info/PKG-INFO
+xfl.egg-info/SOURCES.txt
+xfl.egg-info/dependency_links.txt
+xfl.egg-info/requires.txt
+xfl.egg-info/top_level.txt
+xfl.egg-info/zip-safe
