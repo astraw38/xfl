@@ -19,7 +19,7 @@ if __name__ == "__main__":
                         default=os.getcwd())
     parser.add_argument("--hash",
                         dest="hash_type",
-                        help="Choose a hashing mode (leave blank for none): MD5 or SHA1",
+                        help="Choose a hashing mode (optional): MD5 or SHA1",
                         default=None)
 
     args = parser.parse_args()
