@@ -37,8 +37,8 @@ import sys
 try:
     from path import path
 except:
-    raise ImportError, "the path module is not installed: " \
-                       + "see http://www.jorendorff.com/articles/python/path/"
+    raise ImportError("the path module is not installed: "
+                      "see http://www.jorendorff.com/articles/python/path/")
 
 ### import LXML for pythonic XML:
 ##try:
@@ -136,6 +136,7 @@ class DirTree:
         """
         to write the DirTree in an XML file.
         """
+        indent(self.et)
         tree = ET.ElementTree(self.et)
         tree.write(filename, encoding)
 
@@ -183,7 +184,6 @@ class DirTree:
                 buf = current_file.read(BLOCKSIZE)
 
         return hasher.hexdigest()
-
 
 
 #--- FUNCTIONS ----------------------------------------------------------------
@@ -247,6 +247,22 @@ def compare_DT(dirTree1, dirTree2):
             # now paths2 should contain only files and dirs that weren't in paths1
     only2 = paths2
     return same, different, only1, only2
+
+
+def indent(elem, level=0):
+    i = "\n" + level * "  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 
 def callback_dir_print(dir, element):
