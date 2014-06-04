@@ -31,6 +31,7 @@ License: CeCILL v2, open-source (GPL compatible)
 # - DirTree options to handle owner, hash, ...
 
 #--- IMPORTS ------------------------------------------------------------------
+import logging
 import sys
 
 # path module to easily handle files and dirs:
@@ -198,18 +199,22 @@ def compare_files(et1, et2):
         return False
     if et1.tag == TAG_DIR:
         if et1.get(ATTR_NAME) != et2.get(ATTR_NAME):
+            print ("Directory name verification failed: {0} != {1}".format(et1.get(ATTR_NAME), et2.get(ATTR_NAME)))
             return False
         else:
             return True
     elif et1.tag == TAG_FILE:
         if et1.get(ATTR_NAME) != et2.get(ATTR_NAME):
             #Compare names
+            print ("File name verification failed: {0} != {1}".format(et1.get(ATTR_NAME), et2.get(ATTR_NAME)))
             return False
         if et1.get(ATTR_SIZE) != et2.get(ATTR_SIZE):
             #Compare sizes
+            print ("File {0} failed size verification".format(et1.get(ATTR_NAME)))
             return False
         if et1.get(ATTR_HASH) != et2.get(ATTR_HASH):
             #Compare file hash (if the one has a hash and the other does not, it'll return false)
+            print ("File {0} failed hash verification".format(et1.get(ATTR_NAME)))
             return False
         else:
             return True
@@ -217,7 +222,53 @@ def compare_files(et1, et2):
         raise TypeError
 
 
-def compare_DT(dirTree1, dirTree2):
+def comp_filesv2(tree1, tree2, values=None, log=None):
+    """
+    Compares 2 tree elements.
+
+    :param tree1:
+    :param tree2:
+    :param values: List of what to check.
+        Default: ATTR_NAME, ATTR_HASH, ATTR_SIZE
+    :param log: Logger. Defaults to logging.getLogger(__name__)
+    :return:
+    """
+    if log is None:
+        #Default to root logger.
+        log = logging.getLogger()
+
+    if values is None:
+        #Default to checking name, size, and hash.
+        values = [ATTR_NAME, ATTR_HASH, ATTR_SIZE]
+    else:
+        for value in values:
+            #Check to make sure that the list of values is valid.
+            if value not in [ATTR_SIZE, ATTR_HASH, ATTR_NAME, ATTR_MTIME, ATTR_OWNER, ATTR_TIME]:
+                raise TypeError("Checking value %s is INVALID" % value)
+
+    if tree1.tag != tree2.tag:
+        return False
+
+    if tree1.tag == TAG_DIR:
+        #Means this is a directory, compare names.
+        if tree1.get(ATTR_NAME) != tree2.get(ATTR_NAME):
+            log.info("Directory name verification failed: %s != %s", tree1.get(ATTR_NAME), tree2.get(ATTR_NAME))
+            return False
+        else:
+            return True
+    elif tree1.tag == TAG_FILE:
+        #Tagged as a file
+        ret_value = True
+        for value in values:
+            #If any one of these checks fails, the whole thing fails.
+            if tree1.get(value) != tree2.get(value):
+                log.info("%s verification failed: %s != %s", value, tree1.get(value), tree2.get(value))
+                ret_value = False
+
+        return ret_value
+
+
+def compare_DT(dirTree1, dirTree2, values=None, log=None):
     """
     to compare two DirTrees, and report which files have changed.
     returns a tuple of 4 lists of paths: same files, different files,
@@ -236,7 +287,7 @@ def compare_DT(dirTree1, dirTree2):
             # path is in the 2 DT, we have to compare file info
             f1 = dirTree1.dict[p]
             f2 = dirTree2.dict[p]
-            if compare_files(f1, f2):
+            if comp_filesv2(f1, f2, values, log):
                 # files/dirs are the same
                 same.append(p)
             else:

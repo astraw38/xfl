@@ -3,13 +3,12 @@ from setuptools import setup, find_packages
 setup(
     name='xfl',
     packages=['xfl'],
-    url='',
-    license='',
-    author='',
-    author_email='',
+    url='https://github.com/fireflash38/xfl',
+    license='CeCILL v2',
+    maintainer='Ashley Straw',
+    maintainer_email='as.fireflash38@gmail.com',
     description='',
     version='.06',
     install_requires='path.py',
-    zip_safe=True,
     scripts=['bin/create_manifest.py']
 )
