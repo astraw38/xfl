@@ -17,7 +17,7 @@ License:
 
 
 
-
+```
 create_manifest.py --help
 usage: create_manifest.py [-h] [-f FILENAME] [-p PATH] [--hash HASH_TYPE]
 
@@ -30,3 +30,4 @@ optional arguments:
                         directory
   --hash HASH_TYPE      Choose a hashing mode (optional): MD5 or
                         SHA1
+```                        
