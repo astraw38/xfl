@@ -8,7 +8,7 @@ setup(
     maintainer='Ashley Straw',
     maintainer_email='as.fireflash38@gmail.com',
     description='',
-    version='.06',
+    version='1.0',
     install_requires='path.py',
     scripts=['bin/create_manifest.py']
 )
