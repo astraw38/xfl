@@ -11,8 +11,9 @@ Project website: http://www.decalage.info/python/xfl
 License: CeCILL v2, open-source (GPL compatible)
          see http://www.cecill.info/licences/Licence_CeCILL_V2-en.html
 """
+from __future__ import print_function
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # CHANGELOG:
 # 2006-08-04 v0.01 PL: - 1st version
 # 2006-06-08 v0.03 PL
@@ -20,7 +21,7 @@ License: CeCILL v2, open-source (GPL compatible)
 # 2007-08-15 v0.05 PL: - added file callback, added element to callbacks
 # 2008-02-06 v0.06 PL: - first public release
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # TODO:
 # + store timestamps with XML-Schema dateTime format
 # - options to store owner
@@ -30,22 +31,17 @@ License: CeCILL v2, open-source (GPL compatible)
 # - allow callback functions for dirs and files (path + object)
 # - DirTree options to handle owner, hash, ...
 
-#--- IMPORTS ------------------------------------------------------------------
 import logging
+import os
 import sys
+import argparse
 
 # path module to easily handle files and dirs:
 try:
-    from path import path
-except:
+    from path import Path
+except ImportError:
     raise ImportError("the path module is not installed: "
                       "see http://www.jorendorff.com/articles/python/path/")
-
-### import LXML for pythonic XML:
-##try:
-##    import lxml.etree as ET
-##except:
-##    raise ImportError, "You must install lxml: http://codespeak.net/lxml"
 
 # ElementTree for pythonic XML:
 try:
@@ -58,8 +54,6 @@ try:
 except:
     raise ImportError, "the ElementTree module is not installed: " \
                        + "see http://effbot.org/zone/element-index.htm"
-
-#--- CONSTANTS ----------------------------------------------------------------
 
 # XML tags
 TAG_DIRTREE = "dirtree"
@@ -74,23 +68,25 @@ ATTR_SIZE = "size"
 ATTR_OWNER = "owner"
 ATTR_HASH = 'hash'
 
-#Hash consts
+# Hash consts
 BLOCKSIZE = 65536
 
-#--- CLASSES ------------------------------------------------------------------
+
+# --- CLASSES ------------------------------------------------------------------
 
 
-class DirTree:
+class DirTree(object):
     """
     class representing a tree of directories and files,
     that can be written or read from an XML file.
     """
 
-    def __init__(self, rootpath=""):
+    def __init__(self, rootpath="", element_tree=None):
         """
         DirTree constructor.
         """
-        self.rootpath = path(rootpath)
+        self.rootpath = Path(rootpath)
+        self.et = element_tree
 
     def read_disk(self, rootpath=None, callback_dir=None, callback_file=None, hasher=None):
         """
@@ -99,11 +95,11 @@ class DirTree:
         # creation of the root ElementTree:
         self.et = ET.Element(TAG_DIRTREE)
         if rootpath:
-            self.rootpath = path(rootpath)
+            self.rootpath = Path(rootpath)
             # name attribute = rootpath
         self.et.set(ATTR_NAME, self.rootpath)
         # time attribute = time of scan
-        #self.et.set(ATTR_TIME, str(time.time()))
+        # self.et.set(ATTR_TIME, str(time.time()))
         self._scan_dir(self.rootpath, self.et, callback_dir, callback_file, hasher)
 
     def _scan_dir(self, directory, parent, callback_dir=None, callback_file=None, hasher=None):
@@ -113,22 +109,22 @@ class DirTree:
         """
         if callback_dir:
             callback_dir(directory, parent)
-        for f in directory.files():
+        for dir_file in directory.files():
             e = ET.SubElement(parent, TAG_FILE)
-            e.set(ATTR_NAME, f.name)
-            e.set(ATTR_SIZE, str(f.getsize()))
+            e.set(ATTR_NAME, dir_file.name)
+            e.set(ATTR_SIZE, str(dir_file.getsize()))
 
             if hasher is not None:
-                e.set(ATTR_HASH, self._get_file_hash(f, hasher))
+                e.set(ATTR_HASH, self._get_file_hash(dir_file, hasher))
 
             try:
-                e.set(ATTR_OWNER, f.get_owner())
+                e.set(ATTR_OWNER, dir_file.get_owner())
             except:
                 pass
             if callback_file:
-                callback_file(f, e)
+                callback_file(dir_file, e)
         for d in directory.dirs():
-            #print d
+            # print d
             e = ET.SubElement(parent, TAG_DIR)
             e.set(ATTR_NAME, d.name)
             self._scan_dir(d, e, callback_dir, callback_file, hasher)
@@ -140,6 +136,25 @@ class DirTree:
         indent(self.et)
         tree = ET.ElementTree(self.et)
         tree.write(filename, encoding)
+
+    @classmethod
+    def from_disk(cls, rootpath, callback_dir=None, callback_file=None, hasher=None):
+        """
+        Factory for creating a directory tree by reading from disk.
+        """
+        dirtree = cls(rootpath, ET.Element(TAG_DIRTREE))
+        dirtree._scan_dir(rootpath, dirtree.et, callback_dir, callback_file, hasher)
+        return dirtree
+
+    @classmethod
+    def from_file(cls, filename):
+        """
+        Create a DirTree by reading in an XML file.
+        """
+        tree = ET.parse(filename)
+
+        root = tree.getroot()
+        return cls(root.get(ATTR_NAME), root)
 
     def read_file(self, filename):
         """
@@ -154,7 +169,7 @@ class DirTree:
         to create a dictionary which indexex all objects by their paths.
         """
         self.dict = {}
-        self._pathdict_dir(path(""), self.et)
+        self._pathdict_dir(Path(""), self.et)
 
     def _pathdict_dir(self, base, et):
         """
@@ -166,10 +181,9 @@ class DirTree:
             self.dict[dpath] = d
             self._pathdict_dir(dpath, d)
         files = et.findall(TAG_FILE)
-        for f in files:
-            fpath = base / f.get(ATTR_NAME)
-            self.dict[fpath] = f
-
+        for dir_file in files:
+            fpath = base / dir_file.get(ATTR_NAME)
+            self.dict[fpath] = dir_file
 
     def _get_file_hash(self, file_name, hasher):
         """
@@ -187,8 +201,6 @@ class DirTree:
         return hasher.hexdigest()
 
 
-#--- FUNCTIONS ----------------------------------------------------------------
-
 def compare_files(et1, et2):
     """
     to compare two files or dirs.
@@ -199,21 +211,23 @@ def compare_files(et1, et2):
         return False
     if et1.tag == TAG_DIR:
         if et1.get(ATTR_NAME) != et2.get(ATTR_NAME):
-            print ("Directory name verification failed: {0} != {1}".format(et1.get(ATTR_NAME), et2.get(ATTR_NAME)))
+            print ("Directory name verification failed: {0} != {1}".format(et1.get(ATTR_NAME),
+                                                                           et2.get(ATTR_NAME)))
             return False
         else:
             return True
     elif et1.tag == TAG_FILE:
         if et1.get(ATTR_NAME) != et2.get(ATTR_NAME):
-            #Compare names
-            print ("File name verification failed: {0} != {1}".format(et1.get(ATTR_NAME), et2.get(ATTR_NAME)))
+            # Compare names
+            print ("File name verification failed: {0} != {1}".format(et1.get(ATTR_NAME),
+                                                                      et2.get(ATTR_NAME)))
             return False
         if et1.get(ATTR_SIZE) != et2.get(ATTR_SIZE):
-            #Compare sizes
+            # Compare sizes
             print ("File {0} failed size verification".format(et1.get(ATTR_NAME)))
             return False
         if et1.get(ATTR_HASH) != et2.get(ATTR_HASH):
-            #Compare file hash (if the one has a hash and the other does not, it'll return false)
+            # Compare file hash (if the one has a hash and the other does not, it'll return false)
             print ("File {0} failed hash verification".format(et1.get(ATTR_NAME)))
             return False
         else:
@@ -234,15 +248,15 @@ def comp_filesv2(tree1, tree2, values=None, log=None):
     :return:
     """
     if log is None:
-        #Default to root logger.
+        # Default to root logger.
         log = logging.getLogger()
 
     if values is None:
-        #Default to checking name, size, and hash.
+        # Default to checking name, size, and hash.
         values = [ATTR_NAME, ATTR_HASH, ATTR_SIZE]
     else:
         for value in values:
-            #Check to make sure that the list of values is valid.
+            # Check to make sure that the list of values is valid.
             if value not in [ATTR_SIZE, ATTR_HASH, ATTR_NAME, ATTR_MTIME, ATTR_OWNER, ATTR_TIME]:
                 raise TypeError("Checking value %s is INVALID" % value)
 
@@ -250,19 +264,21 @@ def comp_filesv2(tree1, tree2, values=None, log=None):
         return False
 
     if tree1.tag == TAG_DIR:
-        #Means this is a directory, compare names.
+        # Means this is a directory, compare names.
         if tree1.get(ATTR_NAME) != tree2.get(ATTR_NAME):
-            log.info("Directory name verification failed: %s != %s", tree1.get(ATTR_NAME), tree2.get(ATTR_NAME))
+            log.info("Directory name verification failed: %s != %s", tree1.get(ATTR_NAME),
+                     tree2.get(ATTR_NAME))
             return False
         else:
             return True
     elif tree1.tag == TAG_FILE:
-        #Tagged as a file
+        # Tagged as a file
         ret_value = True
         for value in values:
-            #If any one of these checks fails, the whole thing fails.
+            # If any one of these checks fails, the whole thing fails.
             if tree1.get(value) != tree2.get(value):
-                log.info("%s verification failed: %s != %s", value, tree1.get(value), tree2.get(value))
+                log.info("%s verification failed: %s != %s", value, tree1.get(value),
+                         tree2.get(value))
                 ret_value = False
 
         return ret_value
@@ -320,43 +336,43 @@ def callback_dir_print(dir, element):
     """
     sample callback function to print dir path.
     """
-    print dir
+    print(dir)
 
 
 def callback_file_print(file, element):
     """
     sample callback function to print file path.
     """
-    print " - " + file
+    print(" - " + file)
 
-
-#--- MAIN ---------------------------------------------------------------------
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser("Build an XML Manifest of a given directory")
+    parser.add_argument("rootpath",
+                        action="store",
+                        type=str,
+                        help="Directory to parse")
+    parser.add_argument("-o", "--output",
+                        action="store",
+                        type=str,
+                        help="Output file name, defaulting to <rootpath>.xml")
+    parser.add_argument("-i", "--input",
+                        action="store",
+                        type=str,
+                        help="Input XML file to compare to")
+    args = parser.parse_args()
+    if args.output is None:
+        args.output = "{}.xml".format(os.path.split(args.rootpath)[1])
 
-    if len(sys.argv) < 3:
-        print __doc__
-        print "usage: python %s <root path> <xml file> [previous xml file]" % path(sys.argv[0]).name
-        sys.exit(1)
-    d = DirTree()
-    d.read_disk(sys.argv[1], callback_dir_print, callback_file_print)
-    d.write_file(sys.argv[2])
-    if len(sys.argv) > 3:
-        d2 = DirTree()
-        d2.read_file(sys.argv[3])
-        same, different, only1, only2 = compare_DT(d, d2)
-        ##    print "\nSAME:"
-        ##    for f in sorted(same):
-        ##        print "  "+f
-        print "\nDIFFERENT:"
-        for f in sorted(different):
-            print "  " + f
-        print "\nNEW:"
-        for f in sorted(only1):
-            print "  " + f
-        print "\nDELETED:"
-        for f in sorted(only2):
-            print "  " + f
+    dirtree = DirTree.from_disk(args.rootpath, callback_dir_print, callback_file_print)
 
-
-
+    dirtree.write_file(args.output)
+    if args.input:
+        d2 = DirTree.from_file(args.input)
+        same, different, only1, only2 = compare_DT(dirtree, d2)
+        print("DIFFERENT:")
+        print("\n".join("\t{}".format(diff) for diff in sorted(different)))
+        print("\nNEW:")
+        print("\n".join("\t{}".format(left) for left in sorted(only1)))
+        print("\nDELETED:")
+        print("\n".join("\t{}".format(right) for right in sorted(only2)))

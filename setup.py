@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name='xfl',
@@ -8,7 +8,7 @@ setup(
     maintainer='Ashley Straw',
     maintainer_email='as.fireflash38@gmail.com',
     description='',
-    version='1.0',
-    install_requires='path.py',
+    version='1.1',
+    install_requires=['path.py', 'six'],
     scripts=['bin/create_manifest.py']
 )

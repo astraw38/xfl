@@ -1,4 +1,5 @@
 #!/usr/local/bin/python
+from __future__ import print_function
 import os
 from xfl import DirTree
 from os import sys
@@ -35,9 +36,8 @@ if __name__ == "__main__":
             hasher = hashlib.md5()
 
     dt = DirTree()
-    print "Creating directory list: {0}".format(args.path)
+    print("Creating directory list: {0}".format(args.path))
     dt.read_disk(args.path, hasher=hasher)
-    print "Writing to file: %s" % (args.filename)
+    print("Writing to file: %s" % (args.filename))
     dt.write_file(args.filename)
-    print "Done!"
-    del dt
+    print("Done!")
